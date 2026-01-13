@@ -16,11 +16,13 @@ export enum AppView {
   
   // Live App Views (EBRS Application)
   LOGIN = 'LOGIN',
+  REGISTER = 'REGISTER',
   APP_DASHBOARD = 'APP_DASHBOARD',
   CLIENTS = 'CLIENTS',
   CONTRACTS = 'CONTRACTS',
   INVOICES = 'INVOICES',
   RECEIPTS = 'RECEIPTS',
+  USERS = 'USERS',
   REPORTS = 'REPORTS',
   SETTINGS = 'SETTINGS',
   ADMIN = 'ADMIN',
@@ -57,10 +59,28 @@ export interface Contract {
 
 export interface StaffMember {
   id: string;
-  name: string;
+  username: string;
+  email: string;
+  full_name: string;
+  name: string; // Kept for backwards compatibility
   phone: string;
   role: 'super_admin' | 'station_manager' | 'sales_executive' | 'accountant' | 'viewer';
-  stations: string[];
+  station_codes: string[];
+  stations: string[]; // Kept for backwards compatibility
+  status: 'active' | 'inactive';
+}
+
+export type UserRole = 'super_admin' | 'station_manager' | 'sales_executive' | 'accountant' | 'viewer';
+
+export interface RegisterFormData {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  full_name: string;
+  phone: string;
+  role: UserRole;
+  station_codes: string[];
   status: 'active' | 'inactive';
 }
 

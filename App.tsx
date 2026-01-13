@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Database, LayoutDashboard, Briefcase, Menu, X, 
-  ChevronRight, Zap, CheckCircle2, Lock, Terminal, Radio, 
-  FileJson, Server, FileText, Shield, Eye, Users, Receipt as ReceiptIcon, BarChart3, 
+import {
+  Database, LayoutDashboard, Briefcase, Menu, X,
+  ChevronRight, Zap, CheckCircle2, Lock, Terminal, Radio,
+  FileJson, Server, FileText, Shield, Eye, Users, Receipt as ReceiptIcon, BarChart3,
   Settings, LogOut, Plus, TrendingUp,
   Clock, CheckCircle, AlertCircle, MoreVertical, Smartphone,
   CreditCard, Banknote, Calendar, Repeat,
@@ -17,9 +17,12 @@ import { GoogleGenAI } from "@google/genai";
 import { AppView, Client, Contract, StaffMember, Language } from './types';
 import { STATIONS as INITIAL_STATIONS, EBRS_SQL_SCHEMA } from './constants';
 import { translations } from './translations';
-import { 
-  getFastAPIImplementation, getAPIDocsCode, getSDKCode 
+import {
+  getFastAPIImplementation, getAPIDocsCode, getSDKCode
 } from './services/geminiService';
+import { useAuth } from './contexts/AuthContext';
+import { RegisterPage } from './components/RegisterPage';
+import { UsersPage } from './components/UsersPage';
 
 // Fix: Augment Window interface correctly
 declare global {
@@ -73,9 +76,39 @@ const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolea
 
 // --- MAIN VIEW COMPONENTS ---
 
-const LoginPage: React.FC<{ onLogin: () => void; t: any }> = ({ onLogin, t }) => {
-  const [step, setStep] = useState(1);
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (step === 1) setStep(2); else onLogin(); };
+const LoginPage: React.FC<{ t: any }> = ({ t }) => {
+  const { login, loading, error, clearError } = useAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+
+    if (!username || !password) {
+      return;
+    }
+
+    try {
+      await login(username, password);
+      // Navigation handled by App.tsx auth check
+    } catch (err) {
+      // Error handled by AuthContext
+      console.error('Login error:', err);
+    }
+  };
+
+  // Demo access function
+  const handleDemoAccess = async () => {
+    setUsername('demo');
+    setPassword('demo123');
+    try {
+      await login('demo', 'demo123');
+    } catch (err) {
+      console.error('Demo login error:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex bg-[#0f172a] justify-center items-center p-6">
       <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -90,33 +123,57 @@ const LoginPage: React.FC<{ onLogin: () => void; t: any }> = ({ onLogin, t }) =>
         </div>
 
         <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-6">
+          {error && (
+            <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl">
+              <p className="text-red-600 text-sm font-bold">{error}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-                {step === 1 ? t.phone_number : t.otp_code}
+                Username
               </label>
-              <input 
+              <input
                   autoFocus
-                  type="text" 
-                  placeholder={step === 1 ? "+234 ..." : "000 000"} 
-                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-900 outline-none focus:border-slate-900 transition-all text-center tracking-widest text-lg" 
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your username"
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-900 outline-none focus:border-slate-900 transition-all"
               />
             </div>
-            <button type="submit" className="w-full bg-[#0f172a] text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 transition-all uppercase tracking-[0.2em] text-xs">
-              {t.continue}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                Password
+              </label>
+              <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-900 outline-none focus:border-slate-900 transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#0f172a] text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : t.continue}
             </button>
           </form>
-          
+
           <div className="relative">
             <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100" /></div>
             <div className="relative flex justify-center text-[10px] uppercase font-black text-slate-300 bg-white px-4">OR</div>
           </div>
 
-          <button onClick={onLogin} className="w-full flex items-center justify-center gap-3 py-4 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all">
+          <button onClick={handleDemoAccess} disabled={loading} className="w-full flex items-center justify-center gap-3 py-4 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all disabled:opacity-50">
               <ShieldEllipsis size={18} /> {t.demo_access}
           </button>
         </div>
-        
+
         <p className="text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest">
           Secured by Freedom Radio Group Infrastructure
         </p>
@@ -167,9 +224,9 @@ const LiveDashboard: React.FC<{ t: any }> = ({ t }) => (
 // --- CORE APP COMPONENT ---
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<AppView>(AppView.LOGIN);
+  const { isAuthenticated, user, logout, loading } = useAuth();
+  const [activeView, setActiveView] = useState<AppView>(AppView.APP_DASHBOARD);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [isAuth, setIsAuth] = useState(false);
   const [language, setLanguage] = useState<Language>(Language.ENGLISH);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -185,8 +242,32 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (!isAuth || activeView === AppView.LOGIN) {
-      return <LoginPage onLogin={() => { setIsAuth(true); setActiveView(AppView.APP_DASHBOARD); }} t={t} />;
+  // Show loading spinner while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full flex bg-[#0f172a] justify-center items-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mx-auto" />
+          <p className="text-slate-400 text-sm font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage t={t} />;
+  }
+
+  // Show register page if active view is REGISTER
+  if (activeView === AppView.REGISTER) {
+    return (
+      <RegisterPage
+        onBack={() => setActiveView(AppView.APP_DASHBOARD)}
+        onSuccess={() => setActiveView(AppView.APP_DASHBOARD)}
+        t={t}
+      />
+    );
   }
 
   const handleNavClick = (view: AppView) => {
@@ -226,6 +307,13 @@ const App: React.FC = () => {
           <NavItem icon={<ShieldCheckIcon size={20} />} label={t.verify_doc} isActive={activeView === AppView.VERIFICATION_PORTAL} onClick={() => handleNavClick(AppView.VERIFICATION_PORTAL)} isOpen={isSidebarOpen} />
         </section>
 
+        {user && (user.role === 'super_admin' || user.role === 'station_manager') && (
+          <section className="pt-4 border-t border-white/5">
+            {isSidebarOpen && <p className="px-8 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">ADMIN</p>}
+            <NavItem icon={<UserPlus size={20} />} label="Users" isActive={activeView === AppView.USERS} onClick={() => handleNavClick(AppView.USERS)} isOpen={isSidebarOpen} />
+          </section>
+        )}
+
         <section className="pt-4 border-t border-white/5">
           {isSidebarOpen && <p className="px-8 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Core</p>}
           <NavItem icon={<Database size={20} />} label="Schema" isActive={activeView === AppView.SCHEMA} onClick={() => handleNavClick(AppView.SCHEMA)} isOpen={isSidebarOpen} />
@@ -234,7 +322,7 @@ const App: React.FC = () => {
       </div>
 
       <div className="p-4 border-t border-white/5 space-y-2 shrink-0">
-        <button onClick={() => { setIsAuth(false); setActiveView(AppView.LOGIN); }} className="w-full flex items-center gap-4 px-4 py-3 text-slate-400 hover:text-red-400 rounded-2xl transition-all">
+        <button onClick={() => { logout(); setActiveView(AppView.APP_DASHBOARD); }} className="w-full flex items-center gap-4 px-4 py-3 text-slate-400 hover:text-red-400 rounded-2xl transition-all">
           <LogOut size={20} />
           {isSidebarOpen && <span className="text-sm font-bold uppercase tracking-widest">{t.logout}</span>}
         </button>
@@ -279,13 +367,16 @@ const App: React.FC = () => {
                 <Languages size={14} className="text-emerald-500" />
                 <span className="hidden sm:inline uppercase tracking-widest">{language === Language.ENGLISH ? 'Hausa' : 'English'}</span>
              </button>
-             <div className="w-10 h-10 rounded-2xl bg-[#0f172a] flex items-center justify-center font-black text-white shadow-lg shadow-slate-200">SI</div>
+             <div className="w-10 h-10 rounded-2xl bg-[#0f172a] flex items-center justify-center font-black text-white shadow-lg shadow-slate-200">
+               {user?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'U'}
+             </div>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-slate-50/50">
           <div className="max-w-7xl mx-auto">
             {activeView === AppView.APP_DASHBOARD && <LiveDashboard t={t} />}
+            {activeView === AppView.USERS && <UsersPage t={t} />}
             {activeView === AppView.CLIENTS && (
               <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm animate-in fade-in duration-500">
                 <div className="overflow-x-auto">
